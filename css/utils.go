@@ -1,8 +1,9 @@
-package cssminify
+package css
 
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -10,6 +11,13 @@ import (
 	"regexp"
 	"strings"
 )
+
+func minifyValStr(value string) string {
+	value = cleanSpaces(value)
+	// Values need special care
+	value = cleanHex(value)
+	return value
+}
 
 func minifyVal(value string, file string) string {
 	value = cleanSpaces(value)
@@ -75,17 +83,17 @@ func removeQuotes(img string) string {
 }
 
 func getWebImg(img string) string {
-	resp, err := http.Get(img)
+	output, err := http.Get(img)
 	if err != nil {
 		panic(err)
 	}
-	defer resp.Body.Close()
+	defer output.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(output.Body)
 	if err != nil {
 		panic(err)
 	}
-	return writeWebUrl(body, resp)
+	return writeWebUrl(body, output)
 }
 
 func getLocalImg(img string, file string) string {
@@ -104,8 +112,8 @@ func base64Encode(data []byte) string {
 	return buf.String()
 }
 
-func writeWebUrl(body []byte, resp *http.Response) string {
-	return writeUrl(body, resp.Header.Get("Content-Type"))
+func writeWebUrl(body []byte, output *http.Response) string {
+	return writeUrl(body, output.Header.Get("Content-Type"))
 }
 
 func writeUrl(body []byte, mime string) string {
@@ -116,4 +124,70 @@ func writeUrl(body []byte, mime string) string {
 	buf.WriteString(base64Encode(body))
 	buf.WriteString(")")
 	return buf.String()
+}
+
+func stripLetter(content []byte) (byte, []byte) {
+	var letter byte
+	if len(content) != 0 {
+		letter = content[0]
+		content = content[1:]
+	} else {
+		content = []byte{}
+	}
+	return letter, content
+}
+
+func readFile(root string) string {
+	content, err := ioutil.ReadFile(root)
+	if err != nil {
+		panic(err)
+	}
+	return string(content)
+}
+
+func showSelectors(selector string) (output string) {
+	selectors := strings.Split(selector, ",")
+	for i, sel := range selectors {
+		output += minifySelector(sel)
+		if i != len(selectors)-1 {
+			output += ","
+		}
+	}
+	return
+}
+
+func minifySelector(sel string) string {
+	return cleanSpaces(sel)
+}
+
+func showPropValsStr(pairs []Pair) (output string) {
+	for i, pair := range pairs {
+		output += fmt.Sprintf("%s:%s", minifyProp(string(pair.property)), minifyValStr(string(pair.value)))
+
+		// Let's gain some space: semicolons are optional for the last value
+		if i != len(pairs)-1 {
+			output += ";"
+		}
+	}
+	return
+}
+
+func showPropVals(pairs []Pair, file string) (output string) {
+	for i, pair := range pairs {
+		output += fmt.Sprintf("%s:%s", minifyProp(string(pair.property)), minifyVal(string(pair.value), file))
+
+		// Let's gain some space: semicolons are optional for the last value
+		if i != len(pairs)-1 {
+			output += ";"
+		}
+	}
+	return
+}
+
+func minifyProp(property string) string {
+	return cleanSpaces(property)
+}
+
+func cleanSpaces(str string) string {
+	return spaceRegexp.ReplaceAllString(strings.TrimSpace(str), " ")
 }

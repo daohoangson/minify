@@ -1,19 +1,10 @@
-package cssminify
+package css
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 )
-
-type State struct {
-	state        byte
-	commentState byte
-	current      []byte
-	previous     []byte
-	currentBlock Block
-	currentPair  Pair
-	blocks       []Block
-}
 
 // Error constants
 const (
@@ -33,6 +24,54 @@ const (
 	IN_PROPERTY      = iota
 	IN_VALUE         = iota
 )
+
+var spaceRegexp = regexp.MustCompile(`\s{2,}`)
+
+//basic types
+type Block struct {
+	selector []byte
+	pairs    []Pair
+}
+
+type Pair struct {
+	property []byte
+	value    []byte
+}
+
+func MinifyFromFile(file string) string {
+	return Minify(readFile(file))
+}
+
+func Minify(input string) (output string) {
+
+	var letter byte
+	state := new(State)
+
+	content := []byte(input)
+	input = ""
+
+	for letter, content = stripLetter(content); letter != 0; letter, content = stripLetter(content) {
+		state.parse(letter)
+	}
+
+	for _, block := range state.blocks {
+		output += showSelectors(string(block.selector))
+		output += "{"
+		output += showPropValsStr(block.pairs)
+		output += "}"
+	}
+	return
+}
+
+type State struct {
+	state        byte
+	commentState byte
+	current      []byte
+	previous     []byte
+	currentBlock Block
+	currentPair  Pair
+	blocks       []Block
+}
 
 func (s *State) parse(letter byte) {
 	switch letter {
@@ -115,7 +154,6 @@ func (s *State) colon(letter byte) {
 		if s.state == IN_PROPERTY && !bytes.Equal(nil, s.current) {
 			s.state = IN_VALUE
 			s.currentPair.property = s.current
-
 			// Cleanup
 			s.current = []byte{}
 		} else {
