@@ -12,19 +12,16 @@ import (
 	"strings"
 )
 
-func minifyValStr(value string) string {
-	value = cleanSpaces(value)
-	// Values need special care
-	value = cleanHex(value)
-	return value
-}
-
 func minifyVal(value string, file string) string {
 	value = cleanSpaces(value)
 
 	// Values need special care
 	value = cleanHex(value)
-	value = cleanUrl(value, file)
+
+	if (len(file) > 0) {
+		value = cleanUrl(value, file)
+	}
+
 	return value
 }
 
@@ -158,18 +155,6 @@ func showSelectors(selector string) (output string) {
 
 func minifySelector(sel string) string {
 	return cleanSpaces(sel)
-}
-
-func showPropValsStr(pairs []Pair) (output string) {
-	for i, pair := range pairs {
-		output += fmt.Sprintf("%s:%s", minifyProp(string(pair.property)), minifyValStr(string(pair.value)))
-
-		// Let's gain some space: semicolons are optional for the last value
-		if i != len(pairs)-1 {
-			output += ";"
-		}
-	}
-	return
 }
 
 func showPropVals(pairs []Pair, file string) (output string) {

@@ -39,11 +39,14 @@ type Pair struct {
 }
 
 func MinifyFromFile(file string) string {
-	return Minify(readFile(file))
+	return minify(readFile(file), file)
 }
 
-func Minify(input string) (output string) {
+func Minify(input string) string {
+	return minify(input, "")
+}
 
+func minify(input string, file string) (output string) {
 	var letter byte
 	state := new(State)
 
@@ -57,7 +60,7 @@ func Minify(input string) (output string) {
 	for _, block := range state.blocks {
 		output += showSelectors(string(block.selector))
 		output += "{"
-		output += showPropValsStr(block.pairs)
+		output += showPropVals(block.pairs, file)
 		output += "}"
 	}
 	return
